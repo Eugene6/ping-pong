@@ -18,7 +18,7 @@ Welcome to the definitive, fully functional 2D online multiplayer Ping Pong game
 
 * **Language:** Python
 * **Core Library:** Pygame
-* **Data Protocol:** JSON-based state sync over sockets
+* **Data Protocol:** TCP/IP socket connection for real-time game state synchronization.
 
 ---
 
