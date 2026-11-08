@@ -1,14 +1,19 @@
+import pygame.mixer_music
 from pygame import *
 import socket
 import json
 from threading import Thread
+from menu import *
 
 # --- Налаштування вікна Pygame ---
 WIDTH, HEIGHT = 800, 600
 init()
 screen = display.set_mode((WIDTH, HEIGHT))
 clock = time.Clock()
-display.set_caption("Пінг-Понг")
+display.set_caption("Ping-Pong")
+bg = transform.scale(image.load("tennis.jpg"), (WIDTH, HEIGHT))
+platform1 = transform.scale(image.load("paltform.png"), (20, 100))
+platform2 = transform.scale(image.load("paltform.png"), (20, 100))
 
 # --- Підключення до сервера ---
 def connect_to_server():
@@ -21,6 +26,11 @@ def connect_to_server():
     """
     while True:
         try:
+            screen.fill((0,0,0))
+            load_text = font_main.render("Loading to server...", True, (255,255,255))
+            text_rect = load_text.get_rect(center = (WIDTH/2, HEIGHT/2))
+            screen.blit(load_text, text_rect)
+            display.update()
             client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client.connect(('localhost', 8080))  # Підключення до сервера
             buffer = ""  # Буфер для збирання пакетів
@@ -53,17 +63,23 @@ def receive():
 
 
 # --- Шрифти ---
-font_win = font.Font(None, 72)
-font_main = font.Font(None, 36)
+font_win = font.Font("Houseprotein-Regular.ttf", 72)
+font_main = font.Font("Houseprotein-Regular.ttf", 36)
 
 # --- Ігрові змінні ---
 game_over = False
 winner = None
 you_winner = None
 
+menu()
 # --- Підключення до сервера ---
 my_id, game_state, buffer, client = connect_to_server()
 Thread(target=receive, daemon=True).start()  # Потік для отримання даних від сервера
+
+mixer.music.stop()
+mixer.music.load("gamemusic — копия.mp3")
+mixer.music.play(-1)
+mixer.music.set_volume(0.5)
 
 # --- Головний цикл гри ---
 while True:
@@ -88,17 +104,32 @@ while True:
                 you_winner = True
             else:
                 you_winner = False
+                mixer.Sound("marimbalose.mp3").play()
 
         if you_winner:
-            text = "Ти переміг!"
+            text = "You win!"
         else:
-            text = "Пощастить наступним разом!"
+            text = "Better luck next time!"
+
+
+        keys = key.get_pressed()
+        if keys[K_k]:
+            try:
+                client.close()
+            except:
+                pass
+
+            you_winner = None
+            # --- Підключення до сервера ---
+            my_id, game_state, buffer, client = connect_to_server()
+            Thread(target=receive, daemon=True).start()  # Потік для отримання даних від сервера
+            continue
 
         win_text = font_win.render(text, True, (255, 215, 0))
         text_rect = win_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
         screen.blit(win_text, text_rect)
 
-        text = font_win.render('К - рестарт', True, (255, 215, 0))
+        text = font_win.render('R - restart', True, (255, 215, 0))
         text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 120))
         screen.blit(text, text_rect)
 
@@ -108,12 +139,10 @@ while True:
     # --- Малювання об’єктів гри ---
     if game_state:
         screen.fill((30, 30, 30))
+        screen.blit(bg, (0,0))
 
-        # Платформа гравця 0 (зелена)
-        draw.rect(screen, (0, 255, 0), (20, game_state['paddles']['0'], 20, 100))
-
-        # Платформа гравця 1 (рожева)
-        draw.rect(screen, (255, 0, 255), (WIDTH - 40, game_state['paddles']['1'], 20, 100))
+        screen.blit(platform1, (20, game_state['paddles']['0']))
+        screen.blit(platform2, (WIDTH - 40, game_state['paddles']['1']))
 
         # М'яч (білий круг)
         draw.circle(screen, (255, 255, 255), (game_state['ball']['x'], game_state['ball']['y']), 10)
@@ -125,16 +154,13 @@ while True:
         # Звукові події (поки заглушки)
         if game_state['sound_event']:
             if game_state['sound_event'] == 'wall_hit':
-                # Тут можна вставити звук відбиття м'яча від стіни
-                pass
+                mixer.music.load("pop.ogg")
+                mixer.music.play(1)
             if game_state['sound_event'] == 'platform_hit':
-                # Тут можна вставити звук відбиття м'яча від платформи
-                pass
+                mixer.music.load("boing.mp3")
+                mixer.music.play(1)
 
-    else:
-        # Якщо ще немає стану гри — чекаємо підключення гравців
-        wating_text = font_main.render(f"Очікування гравців...", True, (255, 255, 255))
-        screen.blit(wating_text, (WIDTH // 2 - 25, 20))
+
 
     display.update()
     clock.tick(60)
